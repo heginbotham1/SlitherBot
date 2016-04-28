@@ -11,8 +11,8 @@ This bot's main mission is to dodge players and eat cells/blobs/dots.
 <li>Go to slither.io</li>
 <li>Start the game manually</li>
 <ul><li>You can recognize that SlitherBot is loaded when the logo has been disappeared</li></ul>
-<li>Press <pre>B</pre> (starts SlitherBot)</li>
-<li>Press <pre>A</pre> (starts autoBot)</li>
+<li>Press `B` (starts SlitherBot)</li>
+<li>Press `A` (starts autoBot)</li>
 </ol>
 <h3>autoBot Skills</h3>
 <hr/>
@@ -31,8 +31,8 @@ This bot's objective is to just dodge players.
 <li>Go to slither.io</li>
 <li>Start the game manually</li>
 <ul><li>You can recognize that SlitherBot is loaded when the logo has been disappeared</li></ul>
-<li>Press <pre>B</pre> (starts SlitherBot)</li>
-<li>Press <pre>P</pre> (starts passiveBot)</li>
+<li>Press `B` (starts SlitherBot)</li>
+<li>Press `P` (starts passiveBot)</li>
 </ol>
 <h3>autoBot Skills</h3>
 <hr/>

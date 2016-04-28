@@ -60,12 +60,17 @@ function SlitherBot() {
 
 		var blocks = 0;
 		var sId = 0;
+		var x;
+		var y;
+
 		for(var i = 0; i < snakeList.length; i++) {
 			if(snakeList[i].xx != mySnake.xx && snakeList[i].yy != mySnake.yy) {
 				var tblocks = (Math.abs(mySnake.xx - snakeList[i].xx) + Math.abs(mySnake.yy - snakeList[i].yy)) / 2;
 				if(tblocks < blocks || blocks == 0) {
 					blocks = tblocks;
 					sId = snakeList[i].id;
+					x = snakeList[i].xx;
+					y = snakeList[i].yy;
 				}
 
 				for(var j = 0; j < snakeList[i].pts.length; j++) {
@@ -73,12 +78,14 @@ function SlitherBot() {
 					if(tblocks < blocks) {
 						blocks = tblocks;
 						sId = snakeList[i].id;
+						x = snakeList[i].pts[j].xx;
+						y = snakeList[i].pts[j].yy;
 					}
 				}
 			}
 		}
 
-		callback({ blocksAway: blocks, thickness: 0, snakeId: sId }); // todo
+		callback({ blocksAway: blocks, thickness: 0, snakeId: sId, xx: x, yy: y }); // todo
 	}
 
 	this.getNearestAndSafestFood = function(callback) {
@@ -162,41 +169,49 @@ function SlitherBot() {
 		this.log("Started autoBot!");
 		function doBot() {
 			parent.getNearestSnake(function(data) {
-				document.getElementsByClassName("nsi")[19].innerHTML = 'Nearest snake: ' + Math.round(data.blocksAway / 20) + " blocks away<br />Last turn " + Math.round(((Date.now() / 1000) % 60) - parent.lastTurned) + " seconds ago by autoBot";
-				if((data.blocksAway < (data.thickness + 210) && data.blocksAway != 0 && ((((Date.now() / 1000) % 60) - parent.lastTurned) > 4 || data.snakeId != latestSnakeTurnedOn)) || data.blocksAway < (data.thickness + 45)) {
-					latestSnakeTurnedOn = data.snakeId;
+				if(data.blocksAway < (data.thickness + 210) && data.blocksAway != 0) { // ((((Date.now() / 1000) % 60) - parent.lastTurned) > 2 || data.snakeId != latestSnakeTurnedOn)) || data.blocksAway < (data.thickness + 45)
+					/*latestSnakeTurnedOn = data.snakeId;
 					parent.lastTurned = (Date.now() / 1000) % 60;
-					parent.turnAround();
+					parent.turnAround();*/
+					var dX = Math.abs(data.xx - parent.mySnake.xx);
+					var dY = Math.abs(data.yy - parent.mySnake.yy);
+
+					var rad = Math.atan2(dY, dX);
+					var deg = rad * (180 / Math.PI) + 180;
+					while(deg > 360) deg = deg - 360;
+					var slitherDeg = deg / 1.286;
+
+					parent.setDirection(slitherDeg);
+
+					document.getElementsByClassName("nsi")[19].innerHTML = 'Nearest snake: ' + Math.round(data.blocksAway / 20) + " blocks away<br />Setting deg to: " + slitherDeg;
 				} else {
 					parent.getNearestAndSafestFood(function(data) {
-						if((((Date.now() / 1000) % 60) - parent.lastTurned) > 6) {
-							if(targetedFood != 0 && foodExists(targetedFood)) {
-								data.xx = targetedFoodX;
-								data.yy = targetedFoodY;
-							}
+						if(targetedFood != 0 && foodExists(targetedFood)) {
+							data.xx = targetedFoodX;
+							data.yy = targetedFoodY;
+						}
 
-							if(data.xx != 0 && data.yy != 0) {
-								var dX = Math.abs(data.xx - parent.mySnake.xx);
-								var dY = Math.abs(data.yy - parent.mySnake.yy);
+						if(data.xx != 0 && data.yy != 0) {
+							var dX = Math.abs(data.xx - parent.mySnake.xx);
+							var dY = Math.abs(data.yy - parent.mySnake.yy);
 
-								targetedFoodX = data.xx;
-								targetedFoodY = data.yy;
+							targetedFoodX = data.xx;
+							targetedFoodY = data.yy;
 
-								var rad = Math.atan2(dY, dX);
-								var deg = rad * (180 / Math.PI);
-								var slitherDeg = deg / 1.286; // degrees / 1.286 is the conversion to "SlitherDeg"
+							var rad = Math.atan2(dY, dX);
+							var deg = rad * (180 / Math.PI);
+							var slitherDeg = deg / 1.286; // degrees / 1.286 is the conversion to "SlitherDeg"
 
-								document.getElementsByClassName("nsi")[21].style.color = '#fff';
-								document.getElementsByClassName("nsi")[21].style.font = 'Arial';
-								document.getElementsByClassName("nsi")[21].width = "250px";
-								document.getElementsByClassName("nsi")[21].innerHTML = "Nearest food: " + data.xx + ", " + data.yy + "<br />Setting deg to: " + slitherDeg;
+							document.getElementsByClassName("nsi")[21].style.color = '#fff';
+							document.getElementsByClassName("nsi")[21].style.font = 'Arial';
+							document.getElementsByClassName("nsi")[21].width = "250px";
+							document.getElementsByClassName("nsi")[21].innerHTML = "Nearest food: " + data.xx + ", " + data.yy + "<br />Setting deg to: " + slitherDeg;
 
-								parent.setDirection(slitherDeg);
-							}
+							parent.setDirection(slitherDeg);
 						}
 					});
 				}
-				setTimeout(function(){doBot();}, 500);
+				setTimeout(function(){doBot();}, 80);
 			});
 		}
 		doBot();

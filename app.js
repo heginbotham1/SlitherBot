@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         SlitherBot
 // @namespace    SlitherBot
-// @version      0.1-ALPHA1
+// @version      0.1-PRE-BETA
 // @author       j0ll3
 // @match        http://slither.io/
 // @grant        none
 // ==/UserScript==
 
-var version = "0.1-ALPHA1";
+var version = "0.1-PRE-BETA";
 
 function SlitherBot() {
 	this.name = "SlitherBot v" + version;

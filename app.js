@@ -17,6 +17,7 @@ function SlitherBot() {
 	this.lastTurned = 0;
 	this.currentFood;
 	this.accelerating = false;
+	this.foodBlacklist = [];
 
 	this.setDirection = function(deg) {
 		while(deg < 0) deg = deg + 240;
@@ -66,22 +67,26 @@ function SlitherBot() {
 		var y;
 
 		for(var i = 0; i < snakeList.length; i++) {
-			if(snakeList[i].xx != mySnake.xx && snakeList[i].yy != mySnake.yy) {
-				var tblocks = this.computeDistance(mySnake.xx, mySnake.yy, snakeList[i].xx, snakeList[i].yy);
-				if(tblocks < blocks || blocks == 0) {
-					blocks = tblocks;
-					sId = snakeList[i].id;
-					x = snakeList[i].xx;
-					y = snakeList[i].yy;
-				}
+			if(!snakeList[i].hasOwnProperty("dead")) {
+				if(!snakeList[i].dead) {
+					if(snakeList[i].xx != mySnake.xx && snakeList[i].yy != mySnake.yy) {
+						var tblocks = this.computeDistance(mySnake.xx, mySnake.yy, snakeList[i].xx, snakeList[i].yy);
+						if(tblocks < blocks || blocks == 0) {
+							blocks = tblocks;
+							sId = snakeList[i].id;
+							x = snakeList[i].xx;
+							y = snakeList[i].yy;
+						}
 
-				for(var j = 0; j < snakeList[i].pts.length; j++) {
-					var tblocks = this.computeDistance(mySnake.xx, mySnake.yy, snakeList[i].pts[j].xx, snakeList[i].pts[j].yy);
-					if(tblocks < blocks) {
-						blocks = tblocks;
-						sId = snakeList[i].id;
-						x = snakeList[i].pts[j].xx;
-						y = snakeList[i].pts[j].yy;
+						for(var j = 0; j < snakeList[i].pts.length; j++) {
+							var tblocks = this.computeDistance(mySnake.xx, mySnake.yy, snakeList[i].pts[j].xx, snakeList[i].pts[j].yy);
+							if(tblocks < blocks) {
+								blocks = tblocks;
+								sId = snakeList[i].id;
+								x = snakeList[i].pts[j].xx;
+								y = snakeList[i].pts[j].yy;
+							}
+						}
 					}
 				}
 			}
@@ -102,10 +107,14 @@ function SlitherBot() {
 
 		for(var i = 0; i < c_food.length; i++) {
 			if(c_food[i]) {
-				var c_dist = this.computeDistance(mySnake.xx, mySnake.yy, c_food[i].xx, c_food[i].yy);
-				if(distance == 0 || c_dist < distance) {
-					distance = c_dist;
-					data = { xx: c_food[i].xx, yy: c_food[i].yy, id: c_food[i].id };
+				if(c_food[i].eaten_fr == 0) {
+					if(this.foodBlacklist.indexOf(c_food[i].id) == -1) {
+						var c_dist = this.computeDistance(mySnake.xx, mySnake.yy, c_food[i].xx, c_food[i].yy);
+						if(distance == 0 || c_dist < distance) {
+							distance = c_dist;
+							data = { xx: c_food[i].xx, yy: c_food[i].yy, id: c_food[i].id };
+						}
+					}
 				}
 			}
 		}
@@ -117,7 +126,7 @@ function SlitherBot() {
 		snakeList = this.snakeList;
 
 		for(var i = 0; i < snakeList.length; i++) {
-			if(Math.abs(xx - snakeList[i].xx) > 30 || Math.abs(yy - snakeList[i].yy) > 30) return false;
+			if(Math.abs(xx - snakeList[i].xx) > 300 || Math.abs(yy - snakeList[i].yy) > 300) return false;
 		}
 
 		return true;
@@ -157,6 +166,14 @@ function SlitherBot() {
 
 		return false;
 	}
+
+	this.deleteFromFoodBLTime = function(id) {
+		var parent = this;
+
+		setTimeout(function() {
+			parent.foodBlacklist.splice(parent.foodBlacklist.indexOf(id), 1);
+		}, 4000);
+	}
  
 	this.autoBot = function() {
 		var parent = this;
@@ -164,11 +181,50 @@ function SlitherBot() {
 		var targetedFood = 0;
 		var targetedFoodX = 0;
 		var targetedFoodY = 0;
+		var foodTries = 0;
+
+		var div = document.createElement('div');
+		div.style.width = "20px";
+		div.style.height = "20px";
+		div.style.background = "#ff0000";
+		div.style.position = "absolute";
+		div.style.zIndex = "99999";
+		div.style.borderRadius = "20px";
+		div.innerHTML = "E";
+		div.style.color = '#fff';
+		div.style.lineHeight = "20px";
+		div.style.fontFamily = "Arial";
+		div.style.textAlign = "center";
+		div.setAttribute("id", "target-div");
+		document.body.appendChild(div);
+
+		this.currentTarget = document.getElementById("target-div");
+
+		var div = document.createElement('div');
+		div.style.width = "20px";
+		div.style.height = "20px";
+		div.style.background = "limegreen";
+		div.style.position = "absolute";
+		div.style.zIndex = "99999";
+		div.style.borderRadius = "20px";
+		div.innerHTML = "F";
+		div.style.color = '#fff';
+		div.style.lineHeight = "20px";
+		div.style.fontFamily = "Arial";
+		div.style.textAlign = "center";
+		div.setAttribute("id", "food-div");
+		document.body.appendChild(div);
+
+		this.foodDiv = document.getElementById("food-div");
 
 		this.log("Started autoBot!");
+
 		function doBot() {
 			parent.getNearestSnake(function(data) {
-				if(data.blocksAway < (data.thickness + 300) && data.blocksAway != 0) {
+				parent.currentTarget.style.display = 'none';
+				parent.foodDiv.style.display = 'none';
+				if(data.blocksAway < (data.thickness + 300) && data.blocksAway != 0 && !parent.isSafeThere(data.xx, data.yy)) {
+					parent.currentTarget.style.display = 'block';
 					parent.turnAround(); // precaution, it will turn the right way after the compution
 					var dX = Math.abs(data.xx - parent.mySnake.xx);
 					var dY = Math.abs(data.yy - parent.mySnake.yy);
@@ -191,33 +247,52 @@ function SlitherBot() {
 
 					parent.setDirection(slitherDeg);
 
+					parent.currentTarget.style.top = dY + (document.height) / 2;
+					parent.currentTarget.style.left = dX + (document.width) / 2;
+
 					document.getElementsByClassName("nsi")[19].innerHTML = 'Nearest snake: ' + Math.round(data.blocksAway / 20) + " blocks away<br />Setting deg to: " + slitherDeg;
 				} else {
-					parent.getNearestAndSafestFood(function(data) {
-						if(targetedFood != 0 && foodExists(targetedFood)) {
-							data.xx = targetedFoodX;
-							data.yy = targetedFoodY;
-						}
+					if(Math.random() > 0.95) {
+						parent.setDirection(Math.floor(Math.random() * 360) + 1);
+					} else {
+						parent.foodDiv.style.display = 'block';
+						parent.getNearestAndSafestFood(function(data) {
+							if(targetedFood != 0 && foodExists(targetedFood)) {
+								data.xx = targetedFoodX;
+								data.yy = targetedFoodY;
+								foodTries++;
+							} else {
+								foodTries = 0;
+							}
 
-						if(data.xx != 0 && data.yy != 0) {
-							var dX = Math.abs(data.xx - parent.mySnake.xx);
-							var dY = Math.abs(data.yy - parent.mySnake.yy);
+							if(foodTries == 3) {
+								parent.foodBlacklist.push(data.id);
+								parent.deleteFromFoodBLTime(data.id);
+							}
 
-							targetedFoodX = data.xx;
-							targetedFoodY = data.yy;
+							if(data.xx != 0 && data.yy != 0) {
+								var dX = Math.abs(data.xx - parent.mySnake.xx);
+								var dY = Math.abs(data.yy - parent.mySnake.yy);
 
-							var rad = Math.atan2(dY, dX);
-							var deg = rad * (180 / Math.PI);
-							var slitherDeg = deg / 1.286; // degrees / 1.286 is the conversion to "SlitherDeg"
+								targetedFoodX = data.xx;
+								targetedFoodY = data.yy;
 
-							document.getElementsByClassName("nsi")[21].style.color = '#fff';
-							document.getElementsByClassName("nsi")[21].style.fontFamily = 'Arial';
-							document.getElementsByClassName("nsi")[21].style.width = "250px";
-							document.getElementsByClassName("nsi")[21].innerHTML = "Nearest food: " + data.xx + ", " + data.yy + "<br />Setting deg to: " + slitherDeg;
+								var rad = Math.atan2(dY, dX);
+								var deg = rad * (180 / Math.PI);
+								var slitherDeg = deg / 1.286; // degrees / 1.286 is the conversion to "SlitherDeg"
 
-							parent.setDirection(slitherDeg);
-						}
-					});
+								document.getElementsByClassName("nsi")[21].style.color = '#fff';
+								document.getElementsByClassName("nsi")[21].style.fontFamily = 'Arial';
+								document.getElementsByClassName("nsi")[21].style.width = "250px";
+								document.getElementsByClassName("nsi")[21].innerHTML = "Nearest food: " + data.xx + ", " + data.yy + "<br />Setting deg to: " + slitherDeg;
+
+								parent.foodDiv.style.top = dY + (document.height) / 2;
+								parent.foodDiv.style.left = dX + (document.width) / 2;
+
+								parent.setDirection(slitherDeg);
+							}
+						});
+					}
 				}
 				setTimeout(function(){doBot();}, 80);
 			});
@@ -262,7 +337,7 @@ function SlitherBot() {
 	}
 
 	this.computeDistance = function(x1, y1, x2, y2, s1, s2) { // x:1, y:1, x:2, y:2, size:1, size:2
-        s1 = s1 || 0;
+       	s1 = s1 || 0;
         s2 = s2 || 0;
         var xD = x1 - x2;
         var yD = y1 - y2;

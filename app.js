@@ -9,6 +9,14 @@
 
 var version = "0.1-PRE-BETA";
 
+NodeList.prototype.remove = HTMLCollection.prototype.remove = function() {
+    for(var i = this.length - 1; i >= 0; i--) {
+        if(this[i] && this[i].parentElement) {
+            this[i].parentElement.removeChild(this[i]);
+        }
+    }
+};
+
 function SlitherBot() {
 	this.name = "SlitherBot v" + version;
 
@@ -17,7 +25,7 @@ function SlitherBot() {
 	this.lastTurned = 0;
 	this.currentFood;
 	this.accelerating = false;
-	this.foodBlacklist = [];
+	this.foodBL = [];
 
 	this.setDirection = function(deg) {
 		while(deg < 0) deg = deg + 240;
@@ -27,7 +35,7 @@ function SlitherBot() {
 		h[0] = 1 == 1 ? deg : 254;
 		ws.send(h);
 		this.currentDir = deg;
-	}
+	};
 
 	this.setAcceleration = function(type) {
 		var h = new Uint8Array(1);
@@ -38,17 +46,17 @@ function SlitherBot() {
 		} else {
 			this.accelerating = false;
 		}
-	}
+	};
 
 	this.bot = function() {
 		this.log("Started the bot!");
 		
 		this.setDirection(this.currentDir);
-	}
+	};
 
 	this.turnAround = function() {
 		this.setDirection(Math.abs(this.currentDir - 123 - 10));
-	}
+	};
 
 	this.snakeList = snakes;
 
@@ -93,7 +101,7 @@ function SlitherBot() {
 		}
 
 		callback({ blocksAway: blocks, thickness: 0, snakeId: sId, xx: x, yy: y }); // todo
-	}
+	};
 
 	this.getNearestAndSafestFood = function(callback) {
 		this.mySnake = snake;
@@ -104,33 +112,36 @@ function SlitherBot() {
 
 		var data = { xx: 0, yy: 0 };
 		var distance = 0;
+		var size = 0;
 
 		for(var i = 0; i < c_food.length; i++) {
 			if(c_food[i]) {
 				if(c_food[i].eaten_fr == 0) {
-					if(this.foodBlacklist.indexOf(c_food[i].id) == -1) {
-						var c_dist = this.computeDistance(mySnake.xx, mySnake.yy, c_food[i].xx, c_food[i].yy);
-						if(distance == 0 || c_dist < distance) {
-							distance = c_dist;
-							data = { xx: c_food[i].xx, yy: c_food[i].yy, id: c_food[i].id };
+					if(!this.isBlacklistedFood(c_food[i].id)) {
+						if(this.isSafeThere(c_food[i].xx, c_food[i].yy)) {
+							var c_dist = this.computeDistance(mySnake.xx, mySnake.yy, c_food[i].xx, c_food[i].yy);
+							if(distance == 0 || c_dist < distance || Math.abs(c_food[i].gr - size) > 2) {
+								distance = c_dist;
+								data = { xx: c_food[i].xx, yy: c_food[i].yy, id: c_food[i].id, raw_data: c_food[i] };
+							}
 						}
 					}
 				}
 			}
 		}
 		callback(data);
-	}
+	};
 
 	this.isSafeThere = function(xx, yy) {
 		this.snakeList = snakes;
 		snakeList = this.snakeList;
 
 		for(var i = 0; i < snakeList.length; i++) {
-			if(Math.abs(xx - snakeList[i].xx) > 300 || Math.abs(yy - snakeList[i].yy) > 300) return false;
+			if(this.computeDistance(xx, yy, snakeList[i].xx, snakeList[i].yy) > 100 && this.mySnake.id != snakeList[i].id) return false;
 		}
 
 		return true;
-	}
+	};
 
 	this.iWantAll = function() {
 		localStorage.edttsg = 1;
@@ -147,11 +158,7 @@ function SlitherBot() {
 		window.oncontextmenu = function() {
 			return true;
 		};
-	}
-
-	this.getNextDirection = function() {
-
-	}
+	};
 
 	this.foodExists = function(id) {
 		foodList = foods;
@@ -165,15 +172,32 @@ function SlitherBot() {
 		}
 
 		return false;
-	}
+	};
 
-	this.deleteFromFoodBLTime = function(id) {
-		var parent = this;
+	this.getSnake = function(sid) {
+		var snake_l = this.snakeList;
 
+		for(var i = 0; i < snake_l.length; i++) if(snake_l[i].id == sid) return snake_l[i];
+		return false;
+	};
+
+	this.addToFoodBL = function(fid) {
+		this.foodBL.push(fid);
+	};
+
+	this.foodTimeout = function(fid) {
 		setTimeout(function() {
-			parent.foodBlacklist.splice(parent.foodBlacklist.indexOf(id), 1);
+			this.foodBL.splice(this.foodBL.indexOf(fid), 1);
 		}, 4000);
-	}
+	};
+
+	this.isBlacklistedFood = function(fid) {
+		if(this.foodBL.indexOf(fid) > -1) {
+			return true;
+		} else {
+			return false;
+		}
+	};
  
 	this.autoBot = function() {
 		var parent = this;
@@ -223,15 +247,14 @@ function SlitherBot() {
 			parent.getNearestSnake(function(data) {
 				parent.currentTarget.style.display = 'none';
 				parent.foodDiv.style.display = 'none';
-				if(data.blocksAway < (data.thickness + 300) && data.blocksAway != 0 && !parent.isSafeThere(data.xx, data.yy)) {
+				document.getElementsByClassName("custom-snake-dots").remove();
+				if(data.blocksAway < (data.thickness + 140) && data.blocksAway != 0) {
 					parent.currentTarget.style.display = 'block';
 					parent.turnAround(); // precaution, it will turn the right way after the compution
-					var dX = Math.abs(data.xx - parent.mySnake.xx);
-					var dY = Math.abs(data.yy - parent.mySnake.yy);
+					var dX = data.xx - parent.mySnake.xx;
+					var dY = data.yy - parent.mySnake.yy;
 
-					var rad = Math.atan2(dY, dX);
-					var deg = rad * (180 / Math.PI) + 180;
-					while(deg > 360) deg = deg - 360;
+					var deg = Math.atan2(parent.mySnake.yy - data.yy, parent.mySnake.xx - data.xx) * 180 / Math.PI;
 					var slitherDeg = Math.round(deg / 1.286);
 
 					if(slitherDeg > 0) {
@@ -250,6 +273,8 @@ function SlitherBot() {
 					parent.currentTarget.style.top = dY + (document.height) / 2;
 					parent.currentTarget.style.left = dX + (document.width) / 2;
 
+					var snakeData = parent.getSnake(data.snakeId);
+
 					document.getElementsByClassName("nsi")[19].innerHTML = 'Nearest snake: ' + Math.round(data.blocksAway / 20) + " blocks away<br />Setting deg to: " + slitherDeg;
 				} else {
 					if(Math.random() > 0.95) {
@@ -257,48 +282,46 @@ function SlitherBot() {
 					} else {
 						parent.foodDiv.style.display = 'block';
 						parent.getNearestAndSafestFood(function(data) {
-							if(targetedFood != 0 && foodExists(targetedFood)) {
+							if(targetedFood != 0 && parent.foodExists(data.id)) {
 								data.xx = targetedFoodX;
 								data.yy = targetedFoodY;
-								foodTries++;
-							} else {
-								foodTries = 0;
-							}
-
-							if(foodTries == 3) {
-								parent.foodBlacklist.push(data.id);
-								parent.deleteFromFoodBLTime(data.id);
 							}
 
 							if(data.xx != 0 && data.yy != 0) {
-								var dX = Math.abs(data.xx - parent.mySnake.xx);
-								var dY = Math.abs(data.yy - parent.mySnake.yy);
+								var dX = data.xx - parent.mySnake.xx;
+								var dY = data.yy - parent.mySnake.yy;
 
 								targetedFoodX = data.xx;
 								targetedFoodY = data.yy;
 
-								var rad = Math.atan2(dY, dX);
-								var deg = rad * (180 / Math.PI);
-								var slitherDeg = deg / 1.286; // degrees / 1.286 is the conversion to "SlitherDeg"
+								var deg = (Math.atan2(parent.mySnake.yy - data.yy, parent.mySnake.xx - data.xx) * 180 / Math.PI) + 180;
+								while(deg > 360) deg = deg - 360;
+								var slitherDeg = deg / 1.3; // degrees / 1.286 is the conversion to "SlitherDeg"
 
-								document.getElementsByClassName("nsi")[21].style.color = '#fff';
-								document.getElementsByClassName("nsi")[21].style.fontFamily = 'Arial';
-								document.getElementsByClassName("nsi")[21].style.width = "250px";
-								document.getElementsByClassName("nsi")[21].innerHTML = "Nearest food: " + data.xx + ", " + data.yy + "<br />Setting deg to: " + slitherDeg;
+								if(Math.abs(slitherDeg - parent.currentDir) <= 160) {
+									document.getElementsByClassName("nsi")[21].style.color = '#fff';
+									document.getElementsByClassName("nsi")[21].style.fontFamily = 'Arial';
+									document.getElementsByClassName("nsi")[21].style.width = "250px";
+									document.getElementsByClassName("nsi")[21].innerHTML = "Nearest food: " + data.xx + ", " + data.yy + "<br />Setting deg to: " + slitherDeg;
 
-								parent.foodDiv.style.top = dY + (document.height) / 2;
-								parent.foodDiv.style.left = dX + (document.width) / 2;
+									parent.foodDiv.style.top = dY + (document.height) / 2;
+									parent.foodDiv.style.left = dX + (document.width) / 2;
+									parent.foodDiv.innerHTML = data.raw_data.gr.toFixed(2);
 
-								parent.setDirection(slitherDeg);
+									parent.setDirection(slitherDeg);
+								} else {
+									parent.addToFoodBL(data.id);
+									parent.foodTimeout(data.id);
+								}
 							}
 						});
 					}
 				}
-				setTimeout(function(){doBot();}, 80);
+				setTimeout(function(){doBot();}, 100);
 			});
 		}
 		doBot();
-	}
+	};
 
 	this.passiveBot = function() {
 		var parent = this;
@@ -330,18 +353,16 @@ function SlitherBot() {
 			});
 		}
 		doBot();
-	}
+	};
 
 	this.log = function(txt) {
 		console.info("[SlitherBot] [" + version + "] " + txt);
-	}
+	};
 
 	this.computeDistance = function(x1, y1, x2, y2, s1, s2) { // x:1, y:1, x:2, y:2, size:1, size:2
        	s1 = s1 || 0;
         s2 = s2 || 0;
-        var xD = x1 - x2;
-        var yD = y1 - y2;
-        return Math.sqrt(xD * xD + yD * yD) - (s1 + s2);
+        return Math.sqrt((x2 -= x1) * x2 + (y2 -= y1) * y2) - (s1 + s2);
     };
 }
 
@@ -369,4 +390,4 @@ document.onkeypress = function(e) {
 			alert('Another bot is already running.');
 		}
 	}
-}
+};
